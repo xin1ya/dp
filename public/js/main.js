@@ -442,7 +442,12 @@ function setupGameEvents() {
     if (confirmKickBtn) {
         confirmKickBtn.addEventListener('click', () => {
             const kickPlayerName = document.getElementById('kick-player-name').textContent;
-            // 这里可以添加踢出玩家的逻辑
+            // 向服务器发送踢出投票申请
+            gameManager.sendMessage({
+                type: 'requestKickPlayer',
+                targetPlayerId: gameManager.kickTargetPlayerId
+            });
+            document.getElementById('kick-player-modal').style.display = 'none';
         });
     }
     
@@ -452,4 +457,148 @@ function setupGameEvents() {
             document.getElementById('kick-player-modal').style.display = 'none';
         });
     }
+}
+
+// 游戏客户端类
+class TexasHoldemClient {
+    constructor() {
+        this.playerId = null;
+        this.roomId = null;
+        this.gameState = null;
+        this.avatarData = {};
+        this.cardSkins = {};
+        this.kickTargetPlayerId = null;
+        this.kickTargetPlayerName = null;
+        this.isRegisterMode = false;
+        this.loginConflictUserId = null;
+        this.init();
+    }
+
+    async init() {
+        // 初始化游戏
+        await this.loadAvatarData();
+        this.setupEventListeners();
+        this.checkVersionUpdate();
+    }
+
+    async loadAvatarData() {
+        // 从IndexedDB加载头像数据
+        const avatarData = await this.getAvatarFromIndexedDB();
+        if (avatarData) {
+            this.avatarData = avatarData;
+        }
+    }
+
+    setupEventListeners() {
+        // 为所有玩家的头像添加点击事件，实现发起踢出投票功能
+        document.addEventListener('click', (event) => {
+            const avatarElement = event.target.closest('.player-avatar');
+            if (avatarElement) {
+                const playerId = avatarElement.closest('.player-box').dataset.playerId;
+                // 不能踢出自己
+                if (playerId === this.playerId) return;
+
+                // 显示踢出玩家确认模态框
+                const kickModal = document.getElementById('kick-player-modal');
+                const kickPlayerName = document.getElementById('kick-player-name');
+                if (kickModal && kickPlayerName) {
+                    const playerName = avatarElement.closest('.player-box').querySelector('.player-name').textContent;
+                    kickPlayerName.textContent = playerName;
+                    kickModal.style.display = 'block';
+
+                    // 保存目标玩家ID
+                    this.kickTargetPlayerId = playerId;
+                    this.kickTargetPlayerName = playerName;
+                }
+            }
+        });
+
+        // 为自己的playerbox中的折叠控件添加点击事件，实现控制所有playerbox的折叠/展开功能
+        document.addEventListener('click', (event) => {
+            if (event.target.classList.contains('player-box-toggle-all')) {
+                const playerBoxes = document.querySelectorAll('.player-box');
+                const firstPlayerBox = playerBoxes[0];
+                const shouldCollapse = !firstPlayerBox || !firstPlayerBox.classList.contains('collapsed');
+
+                playerBoxes.forEach(playerBox => {
+                    const content = playerBox.querySelector('.player-box-content');
+
+                    if (shouldCollapse) {
+                        // 折叠
+                        playerBox.classList.add('collapsed');
+                        content.classList.add('collapsed');
+                    } else {
+                        // 展开
+                        playerBox.classList.remove('collapsed');
+                        content.classList.remove('collapsed');
+                    }
+                });
+
+                // 更新按钮文本
+                event.target.textContent = shouldCollapse ? '▶' : '▼';
+            }
+        });
+    }
+
+    // 更新扑克牌皮肤选择下拉框
+    updateCardSkinSelect() {
+        const cardSkinSelect = document.getElementById('card-skin-select');
+        if (!cardSkinSelect) return;
+
+        // 清空现有选项，保留默认选项
+        while (cardSkinSelect.options.length > 1) {
+            cardSkinSelect.remove(1);
+        }
+
+        // 添加用户有权限的皮肤
+        for (const [skinId, skinInfo] of Object.entries(this.cardSkins)) {
+            if (skinId !== 'default') {
+                const option = document.createElement('option');
+                option.value = skinId;
+                option.textContent = skinInfo.name;
+                cardSkinSelect.appendChild(option);
+            }
+        }
+    }
+
+    // 从IndexedDB获取头像数据
+    async getAvatarFromIndexedDB() {
+        return new Promise((resolve) => {
+            const request = indexedDB.open('TexasHoldemDB', 1);
+            request.onsuccess = (event) => {
+                const db = event.target.result;
+                const transaction = db.transaction('avatars', 'readonly');
+                const store = transaction.objectStore('avatars');
+                const getAllRequest = store.getAll();
+                getAllRequest.onsuccess = () => {
+                    const avatarData = {};
+                    getAllRequest.result.forEach(item => {
+                        avatarData[item.userId] = item;
+                    });
+                    resolve(avatarData);
+                };
+                getAllRequest.onerror = () => {
+                    resolve({});
+                };
+            };
+            request.onerror = () => {
+                resolve({});
+            };
+        });
+    }
+
+    // 检查版本更新
+    checkVersionUpdate() {
+        const currentVersion = localStorage.getItem('gameVersion') || '1.0.0';
+        const latestVersion = '1.0.0'; // 这里可以从服务器获取最新版本
+        if (currentVersion !== latestVersion) {
+            localStorage.setItem('gameVersion', latestVersion);
+            // 可以在这里添加版本更新的提示
+        }
+    }
+}
+
+// 初始化游戏客户端
+if (typeof window !== 'undefined') {
+    window.TexasHoldemClient = TexasHoldemClient;
 }
