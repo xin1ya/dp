@@ -1,0 +1,12 @@
+{
+  "collections": {
+    "blackcat": 16,
+    "blackA": 16,
+    "gentu": 16
+  },
+  "collectionMap": {
+    "BC": "blackcat",
+    "BT": "blackA",
+    "GT": "gentu"
+  }
+}

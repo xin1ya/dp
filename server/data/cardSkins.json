@@ -1,0 +1,21 @@
+{
+  "skins": {
+    "default": {
+      "name": "默认皮肤",
+      "description": "默认的扑克牌皮肤",
+      "author": "System",
+      "version": "1.0",
+      "requiresPermission": false
+    },
+    "cat": {
+      "name": "CAT主题",
+      "description": "可爱的猫咪主题扑克牌皮肤",
+      "author": "System",
+      "version": "1.0",
+      "requiresPermission": true
+    }
+  },
+  "permissions": {
+    "e8r516k8dsd": ["cat"]
+  }
+}

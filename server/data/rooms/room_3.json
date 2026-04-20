@@ -1,0 +1,110 @@
+{
+  "roomId": 3,
+  "roomName": "1",
+  "smallBlind": 10,
+  "bigBlind": 20,
+  "stage": "result",
+  "communityCards": [],
+  "pot": 30,
+  "players": [
+    {
+      "id": "wmmixl5vgz8",
+      "name": "打老虎",
+      "seatNumber": 0,
+      "chips": 2000,
+      "borrowedChips": 2000,
+      "hand": [],
+      "bet": 0,
+      "totalBet": 0,
+      "state": "left",
+      "isSpectator": false
+    },
+    {
+      "id": "9zouk2c0i0m",
+      "name": "常胜将军",
+      "seatNumber": 1,
+      "chips": 1990,
+      "borrowedChips": 2000,
+      "hand": [],
+      "bet": 10,
+      "totalBet": 10,
+      "state": "left",
+      "isSpectator": false
+    },
+    {
+      "id": "reesunv9tj",
+      "name": "策略高手",
+      "seatNumber": 2,
+      "chips": 1980,
+      "borrowedChips": 2000,
+      "hand": [],
+      "bet": 20,
+      "totalBet": 20,
+      "state": "left",
+      "isSpectator": false
+    },
+    {
+      "id": "zes7c9myd7",
+      "name": "牌局大师",
+      "seatNumber": 3,
+      "chips": 2030,
+      "borrowedChips": 2000,
+      "hand": [
+        {
+          "suit": "♦",
+          "rank": "Q"
+        },
+        {
+          "suit": "♦",
+          "rank": "5"
+        }
+      ],
+      "bet": 0,
+      "totalBet": 0,
+      "state": "left",
+      "isSpectator": false
+    },
+    {
+      "id": "d40g1zbu54d",
+      "name": "机智玩家",
+      "seatNumber": 4,
+      "chips": 2000,
+      "borrowedChips": 2000,
+      "hand": [],
+      "bet": 0,
+      "totalBet": 0,
+      "state": "left",
+      "isSpectator": false
+    },
+    {
+      "id": "fvzmjm3ptmo",
+      "name": "好运连连",
+      "seatNumber": 5,
+      "chips": 2000,
+      "borrowedChips": 2000,
+      "hand": [],
+      "bet": 0,
+      "totalBet": 0,
+      "state": "left",
+      "isSpectator": false
+    }
+  ],
+  "dealerSeat": 0,
+  "dealerPlayerId": "wmmixl5vgz8",
+  "smallBlindSeat": 1,
+  "bigBlindSeat": 2,
+  "currentPlayerSeat": 1,
+  "minRaise": 20,
+  "lastBet": 20,
+  "gameActive": false,
+  "handInProgress": false,
+  "winners": [
+    {
+      "id": "zes7c9myd7",
+      "name": "牌局大师",
+      "handRank": null,
+      "handRankName": "唯一存活"
+    }
+  ],
+  "chatMessages": []
+}
