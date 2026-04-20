@@ -1748,53 +1748,30 @@ class TexasHoldemClient {
         }
     }
 
-    renderRoomList(rooms) {
-        const roomList = document.getElementById('room-list');
-        if (roomList) {
-            roomList.innerHTML = '';
-            rooms.forEach(room => {
-                const roomElement = document.createElement('div');
-                roomElement.className = 'room-item';
-                
-                const roomName = document.createElement('div');
-                roomName.className = 'room-name';
-                roomName.textContent = room.name || `房间 ${room.id}`;
-                
-                const roomInfo = document.createElement('div');
-                roomInfo.className = 'room-info';
-                roomInfo.innerHTML = `
-                    <span>玩家: ${room.players.length}/9</span>
-                    <span>状态: ${room.gameState ? '游戏中' : '等待中'}</span>
-                `;
-                
-                const joinBtn = document.createElement('button');
-                joinBtn.className = 'join-room-btn';
-                joinBtn.textContent = '加入';
-                joinBtn.onclick = () => this.joinRoom(room.id);
-                
-                roomElement.appendChild(roomName);
-                roomElement.appendChild(roomInfo);
-                roomElement.appendChild(joinBtn);
-                roomList.appendChild(roomElement);
+    sendMessageToChat() {
+        const messageInput = document.getElementById('message-input');
+        if (messageInput && messageInput.value.trim()) {
+            this.sendMessage({
+                type: 'chat',
+                message: messageInput.value.trim()
             });
+            messageInput.value = '';
         }
     }
 
     showCurrentRoom() {
-        const roomList = document.getElementById('room-list-container');
-        const currentRoom = document.getElementById('current-room-container');
-        if (roomList && currentRoom) {
-            roomList.style.display = 'none';
-            currentRoom.style.display = 'block';
+        const currentRoomElement = document.getElementById('current-room');
+        const roomInfoElement = document.getElementById('room-info');
+        if (currentRoomElement && roomInfoElement && this.currentRoom) {
+            roomInfoElement.innerHTML = `<p>房间名称: ${this.currentRoom.name}</p><p>房间ID: ${this.currentRoom.id}</p>`;
+            currentRoomElement.style.display = 'block';
         }
     }
 
     hideCurrentRoom() {
-        const roomList = document.getElementById('room-list-container');
-        const currentRoom = document.getElementById('current-room-container');
-        if (roomList && currentRoom) {
-            roomList.style.display = 'block';
-            currentRoom.style.display = 'none';
+        const currentRoomElement = document.getElementById('current-room');
+        if (currentRoomElement) {
+            currentRoomElement.style.display = 'none';
         }
     }
 
@@ -1803,6 +1780,11 @@ class TexasHoldemClient {
         if (gameArea) {
             gameArea.style.display = 'block';
         }
+        // 显示聊天工具按钮
+        const chatToolsBtn = document.getElementById('chat-tools-btn');
+        if (chatToolsBtn) {
+            chatToolsBtn.style.display = 'block';
+        }
     }
 
     hideGameArea() {
@@ -1810,27 +1792,61 @@ class TexasHoldemClient {
         if (gameArea) {
             gameArea.style.display = 'none';
         }
+        // 隐藏聊天工具按钮
+        const chatToolsBtn = document.getElementById('chat-tools-btn');
+        if (chatToolsBtn) {
+            chatToolsBtn.style.display = 'none';
+        }
+    }
+
+    renderRoomList(rooms) {
+        const roomsContainer = document.getElementById('rooms-container');
+        if (roomsContainer) {
+            if (rooms.length === 0) {
+                roomsContainer.innerHTML = '<p>暂无房间</p>';
+                return;
+            }
+
+            let roomsHtml = '';
+            rooms.forEach(room => {
+                const endTime = room.endTime ? new Date(room.endTime) : null;
+                const timeLeft = endTime ? Math.max(0, Math.floor((endTime - Date.now()) / 1000)) : 0;
+                const hours = Math.floor(timeLeft / 3600);
+                const minutes = Math.floor((timeLeft % 3600) / 60);
+                const seconds = timeLeft % 60;
+                const timeLeftStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                roomsHtml += `
+                    <div class="room-item">
+                        <h3>${room.name}</h3>
+                        <p>房间ID: ${room.id}</p>
+                        <p>玩家: ${room.players.length}/9</p>
+                        <p>剩余时间: ${timeLeftStr}</p>
+                        <button class="join-room-btn" data-room-id="${room.id}">加入</button>
+                    </div>
+                `;
+            });
+
+            roomsContainer.innerHTML = roomsHtml;
+
+            // 添加加入房间按钮的点击事件
+            document.querySelectorAll('.join-room-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const roomId = btn.dataset.roomId;
+                    this.joinRoom(roomId);
+                });
+            });
+        }
     }
 
     renderGameState() {
-        this.gameManager.renderGameState(this.gameState, this.playerId);
-    }
-
-    sendMessageToChat() {
-        const messageInput = document.getElementById('message-input');
-        if (messageInput && messageInput.value.trim()) {
-            this.sendMessage({
-                type: 'chatMessage',
-                message: messageInput.value.trim()
-            });
-            messageInput.value = '';
-        }
+        this.gameManager.renderGameState(this.gameState, this.playerId, this.loggedIn);
     }
 
     toggleFullscreen() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => {
-                console.error(`全屏请求失败: ${err.message}`);
+                console.error(`全屏错误: ${err.message}`);
             });
         } else {
             if (document.exitFullscreen) {
@@ -1851,5 +1867,11 @@ class TexasHoldemClient {
     }
 }
 
-// 初始化客户端
-const client = new TexasHoldemClient();
+// 初始化游戏客户端
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        new TexasHoldemClient();
+    });
+} else {
+    new TexasHoldemClient();
+}

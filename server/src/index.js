@@ -284,7 +284,13 @@ const server = http.createServer((req, res) => {
                 res.writeHead(500);
                 res.end(`Server Error: ${error.code}`, 'utf-8');
             } else {
-                res.writeHead(200, { 'Content-Type': contentType });
+                // 添加缓存控制头，防止浏览器缓存静态文件
+                res.writeHead(200, {
+                    'Content-Type': contentType,
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                });
                 res.end(content, 'utf-8');
             }
         });

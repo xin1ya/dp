@@ -274,11 +274,11 @@ export class ChatManager {
 
     // 解析消息中的表情包
     async parseMessageWithEmojis(message, maxWidth = null) {
-        const matches = message.match(/#([A-Za-z]+)(+)/g) || [];
+        const matches = message.match(/#([A-Za-z]+)(\d+)/g) || [];
         let parsedMessage = message;
         
         for (const match of matches) {
-            const parts = match.match(/#([A-Za-z]+)(+)/);
+            const parts = match.match(/#([A-Za-z]+)(\d+)/);
             if (parts) {
                 const collection = parts[1];
                 const index = parts[2];
