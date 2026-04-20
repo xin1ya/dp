@@ -242,22 +242,47 @@ const server = http.createServer((req, res) => {
     // 构建完整的文件路径
     filePath = path.join(config.PUBLIC_DIR, decodedPath);
     
-    const extname = String(path.extname(filePath)).toLowerCase();
-    const contentType = config.mimeTypes[extname] || 'application/octet-stream';
-
-    fs.readFile(filePath, (error, content) => {
-        if (error) {
-            if (error.code === 'ENOENT') {
+    // 检查文件是否存在且是文件（不是目录）
+    fs.stat(filePath, (err, stats) => {
+        if (err) {
+            if (err.code === 'ENOENT') {
                 res.writeHead(404, { 'Content-Type': 'text/html' });
                 res.end('<h1>404 Not Found</h1>', 'utf-8');
             } else {
                 res.writeHead(500);
-                res.end(`Server Error: ${error.code}`, 'utf-8');
+                res.end(`Server Error: ${err.code}`, 'utf-8');
             }
-        } else {
-            res.writeHead(200, { 'Content-Type': contentType });
-            res.end(content, 'utf-8');
+            return;
         }
+        
+        // 如果是目录，尝试返回index.html
+        if (stats.isDirectory()) {
+            const indexPath = path.join(filePath, 'index.html');
+            fs.readFile(indexPath, (error, content) => {
+                if (error) {
+                    res.writeHead(404, { 'Content-Type': 'text/html' });
+                    res.end('<h1>404 Not Found</h1>', 'utf-8');
+                } else {
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    res.end(content, 'utf-8');
+                }
+            });
+            return;
+        }
+        
+        // 处理文件
+        const extname = String(path.extname(filePath)).toLowerCase();
+        const contentType = config.mimeTypes[extname] || 'application/octet-stream';
+
+        fs.readFile(filePath, (error, content) => {
+            if (error) {
+                res.writeHead(500);
+                res.end(`Server Error: ${error.code}`, 'utf-8');
+            } else {
+                res.writeHead(200, { 'Content-Type': contentType });
+                res.end(content, 'utf-8');
+            }
+        });
     });
 });
 
