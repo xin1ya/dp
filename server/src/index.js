@@ -242,6 +242,11 @@ const server = http.createServer((req, res) => {
     // 构建完整的文件路径
     filePath = path.join(config.PUBLIC_DIR, decodedPath);
     
+    // 调试信息
+    console.log(`Static file request: ${req.url}`);
+    console.log(`Public directory: ${config.PUBLIC_DIR}`);
+    console.log(`File path: ${filePath}`);
+    
     // 检查文件是否存在且是文件（不是目录）
     fs.stat(filePath, (err, stats) => {
         if (err) {
