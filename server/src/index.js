@@ -1,32 +1,33 @@
 const http = require('http');
-const https = require('https');
-const url = require('url');
 const WebSocket = require('ws');
+const url = require('url');
 const path = require('path');
 const fs = require('fs');
-const { Game } = require('./game');
-const { createUser, getUserByUsername, getUserById, updateLastLogin, updateUserOnline, updateUserAvatar, updateUserNickname } = require('./db');
-const { saveRoom, loadRoom, deleteRoom } = require('./roomStorage');
 const multer = require('multer');
 
-// 导入模块化组件
+// 导入配置
+const config = require('./config/config');
+
+// 导入模型
 const Room = require('./models/Room');
-const { broadcastToAll, broadcastToRoom, sendGameStateToRoom, getRoomList, setGlobalVariables } = require('./utils/broadcast');
-const { handleSpecialCommand } = require('./utils/botCommands');
-const { completeLogin } = require('./utils/auth');
-const { processPlayerMessage, setGlobalVariables: setPlayerControllerVariables } = require('./controllers/playerController');
-const { PORT, PUBLIC_DIR, MAX_ROOMS, MIN_PLAYERS_PER_ROOM, MAX_PLAYERS_PER_ROOM, AVATAR_DIR, mimeTypes } = require('./config/config');
+const { Game } = require('./game');
+
+// 导入工具
+const { saveRoom, loadRoom, deleteRoom } = require('./roomStorage');
+const { createUser, getUserByUsername, getUserById, updateLastLogin, updateUserOnline, updateUserAvatar, updateUserNickname } = require('./db');
+const { broadcastToAll, broadcastToRoom, sendGameStateToRoom, getRoomList, setGlobalVariables: setBroadcastGlobals } = require('./utils/broadcast');
+const { processPlayerMessage, setGlobalVariables: setPlayerControllerGlobals } = require('./controllers/playerController');
+const { completeLogin, setGlobalVariables: setAuthGlobals } = require('./utils/auth');
 
 // 创建头像存储目录
-const avatarDir = AVATAR_DIR;
-if (!fs.existsSync(avatarDir)) {
-    fs.mkdirSync(avatarDir, { recursive: true });
+if (!fs.existsSync(config.AVATAR_DIR)) {
+    fs.mkdirSync(config.AVATAR_DIR, { recursive: true });
 }
 
 // 配置multer存储
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, avatarDir);
+        cb(null, config.AVATAR_DIR);
     },
     filename: (req, file, cb) => {
         // 解析URL查询参数
@@ -38,6 +39,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+// 创建HTTP服务器
 const server = http.createServer((req, res) => {
     console.log(`${req.method} ${req.url}`);
 
@@ -238,10 +240,10 @@ const server = http.createServer((req, res) => {
     const decodedPath = decodeURIComponent(filePath);
     
     // 构建完整的文件路径
-    filePath = path.join(PUBLIC_DIR, decodedPath);
+    filePath = path.join(config.PUBLIC_DIR, decodedPath);
     
     const extname = String(path.extname(filePath)).toLowerCase();
-    const contentType = mimeTypes[extname] || 'application/octet-stream';
+    const contentType = config.mimeTypes[extname] || 'application/octet-stream';
 
     fs.readFile(filePath, (error, content) => {
         if (error) {
@@ -259,6 +261,7 @@ const server = http.createServer((req, res) => {
     });
 });
 
+// 创建WebSocket服务器
 const wss = new WebSocket.Server({ 
     server,
     perMessageDeflate: {
@@ -273,6 +276,7 @@ const wss = new WebSocket.Server({
     }
 });
 
+// 全局变量
 const rooms = new Map();
 const players = new Map();
 const onlineUsers = new Set();
@@ -281,9 +285,11 @@ const sseConnections = new Map(); // 存储SSE连接
 let roomIdCounter = 1;
 
 // 设置全局变量
-setGlobalVariables(players, rooms, sseConnections, reconnectList, onlineUsers);
-setPlayerControllerVariables(rooms, players, sseConnections, reconnectList, roomIdCounter, onlineUsers);
+setBroadcastGlobals(players, rooms);
+setPlayerControllerGlobals(rooms, players, sseConnections, reconnectList, roomIdCounter);
+setAuthGlobals(players, rooms, sseConnections, reconnectList, onlineUsers);
 
+// WebSocket连接处理
 wss.on('connection', (ws) => {
     const tempPlayerId = Math.random().toString(36).substring(2, 15);
     let currentPlayer = {
@@ -349,82 +355,7 @@ wss.on('connection', (ws) => {
     });
 });
 
-
-
-// 定期检查房间活跃度，清除10分钟没有行动的房间
-function checkRoomActivity() {
-    const now = Date.now();
-    const tenMinutes = 10 * 60 * 1000;
-    
-    rooms.forEach((room, roomId) => {
-        if (now - room.lastActionTime > tenMinutes) {
-            console.log(`房间 ${roomId} 超过10分钟没有行动，检查是否需要清除`);
-            
-            // 检查房间中是否还有活跃玩家
-            const hasActivePlayers = Array.from(room.game.players.values()).some(player => {
-                return player.state !== 'left' && !room.game.reconnectingPlayers.has(player.id);
-            });
-            
-            if (!hasActivePlayers) {
-                console.log(`房间 ${roomId} 没有活跃玩家，清除房间`);
-                // 通知房间内的所有玩家
-                broadcastToRoom(roomId, JSON.stringify({
-                    type: 'roomInactive',
-                    message: '房间超过10分钟没有行动，已被清除'
-                }));
-                // 清除房间
-                deleteRoom(roomId);
-                rooms.delete(roomId);
-                // 广播房间列表更新
-                broadcastToAll(JSON.stringify({
-                    type: 'roomList',
-                    rooms: getRoomList()
-                }));
-            }
-        }
-    });
-}
-
-server.listen(PORT, () => {
-    console.log(`服务器运行在 http://localhost:${PORT}`);
-    console.log(`WebSocket服务器运行在 ws://localhost:${PORT}`);
-    
-    setInterval(() => {
-        const now = Date.now();
-        const timeout = 1200000;
-        players.forEach((player, playerId) => {
-            if (now - player.lastActivity > timeout && player.ws.readyState === WebSocket.OPEN) {
-                console.log(`清理不活跃连接: ${playerId}, 最后活动时间: ${new Date(player.lastActivity).toLocaleTimeString()}`);
-                player.ws.close();
-            }
-        });
-        
-        // 清理不活跃的SSE连接（超过20分钟没有活动）
-        const sseTimeout = 1200000; // 20分钟
-        sseConnections.forEach((res, clientId) => {
-            const player = players.get(clientId);
-            if (player) {
-                if (now - player.lastActivity > sseTimeout) {
-                    console.log(`清理不活跃SSE连接: ${clientId}, 最后活动时间: ${new Date(player.lastActivity).toLocaleTimeString()}`);
-                    res.end(); // 关闭SSE连接，会触发close事件
-                }
-            } else {
-                // 如果没有对应的player，清理该SSE连接
-                console.log(`清理无对应player的SSE连接: ${clientId}`);
-                res.end(); // 关闭SSE连接，会触发close事件
-            }
-        });
-        
-        // 清理过期的重连记录（超过30秒）
-        const reconnectTimeout = 30000;
-        reconnectList.forEach((info, userId) => {
-            if (now - info.disconnectTime > reconnectTimeout) {
-                reconnectList.delete(userId);
-                console.log(`清理过期重连记录: ${userId}`);
-            }
-        });
-        
-        // 检查房间活跃度，清除10分钟没有行动的房间
-        checkRoomActivity();
-    }, 30000);
+// 启动服务器
+server.listen(config.PORT, () => {
+    console.log(`服务器运行在 http://localhost:${config.PORT}`);
 });
