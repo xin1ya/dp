@@ -74,6 +74,26 @@ const server = http.createServer((req, res) => {
             const avatarPath = `/avatars/${userId}.png`;
             updateUserAvatar(userId, avatarPath);
 
+            // 查找用户所在的房间并更新游戏中的玩家信息
+            let targetRoom = null;
+            rooms.forEach((room) => {
+                const player = room.game.players.get(userId);
+                if (player) {
+                    targetRoom = room;
+                    // 更新玩家的头像更新时间
+                    const user = getUserById(userId);
+                    if (user) {
+                        player.avatarUpdatedAt = user.avatarUpdatedAt;
+                    }
+                }
+            });
+
+            // 如果用户在房间中，通知房间内的其他玩家
+            if (targetRoom) {
+                targetRoom.saveToStorage();
+                sendGameStateToRoom(targetRoom.id);
+            }
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true, avatar: avatarPath }));
         });
