@@ -503,6 +503,16 @@ class Game {
             if (this.stage === GAME_STAGES.READY) {
                 this.seatMap.delete(player.seatNumber);
                 this.players.delete(playerId);
+                
+                // 重新分配座位号，使它们连续
+                const remainingPlayers = Array.from(this.players.values()).sort((a, b) => a.seatNumber - b.seatNumber);
+                this.seatMap.clear();
+                
+                for (let i = 0; i < remainingPlayers.length; i++) {
+                    const p = remainingPlayers[i];
+                    p.seatNumber = i;
+                    this.seatMap.set(i, p.id);
+                }
             } else {
                 // 将玩家加入重连名单，30秒后标记为left
                 this.reconnectingPlayers.set(playerId, Date.now());
